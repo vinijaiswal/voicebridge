@@ -1,0 +1,19 @@
+# VoiceBridge — Python dependencies
+
+# LiveKit Agents framework
+livekit-agents[silero]>=0.8.0
+livekit>=0.11.0
+
+# API server for token generation
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# HTTP client for MiniMax API calls
+httpx>=0.27.0
+
+# Stream ingestion
+yt-dlp>=2024.4.9
+
+# Utilities
+numpy>=1.26.0
+python-dotenv>=1.0.0

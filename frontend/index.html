@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoiceBridge — Live Translation</title>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
+<style>
+:root {
+  --bg:      #09090f;
+  --surface: #111118;
+  --border:  rgba(255,255,255,0.07);
+  --purple:  #7c6ff7;
+  --pdim:    rgba(124,111,247,0.14);
+  --green:   #4ade80;
+  --gdim:    rgba(74,222,128,0.1);
+  --text:    #e2e2ee;
+  --muted:   #666680;
+  --red:     #f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:440px}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.logo-icon{width:38px;height:38px;background:var(--pdim);border:1px solid rgba(124,111,247,0.25);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo h1{font-size:19px;font-weight:600;letter-spacing:-.3px}
+.logo p{font-size:12px;color:var(--muted);margin-top:1px}
+.status{display:flex;align-items:center;gap:8px;padding:9px 13px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;margin-bottom:20px;font-size:13px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.dot.live{background:var(--green);animation:pulse 2s infinite}
+.dot.err{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input{width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;margin-bottom:12px;transition:border-color .2s}
+input:focus{border-color:rgba(124,111,247,0.5)}
+.btn{width:100%;padding:11px;border:none;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .2s}
+.btn-join{background:var(--purple);color:#fff}
+.btn-join:hover{opacity:.88;transform:translateY(-1px)}
+.btn-join:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn-leave{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2);margin-top:9px}
+.btn-leave:hover{background:rgba(248,113,113,.18)}
+.live-panel{display:none;flex-direction:column;gap:14px}
+.live-panel.show{display:flex}
+.config-panel{}
+.config-panel.hide{display:none}
+.wave{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:11px;padding:14px;height:68px;display:flex;align-items:center;justify-content:center;gap:3px;overflow:hidden}
+.bar{width:3px;border-radius:2px;background:var(--purple);min-height:3px;transition:height .08s;opacity:.6}
+.bar.hi{opacity:1}
+.box{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:11px;padding:14px;min-height:90px;max-height:180px;overflow-y:auto}
+.box-lbl{font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.pill{padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;background:var(--gdim);color:var(--green)}
+.line{font-size:14px;line-height:1.75;margin-bottom:3px}
+.line.old{color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.stat{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:9px;padding:9px;text-align:center}
+.stat-v{font-size:18px;font-weight:600;color:var(--purple)}
+.stat-l{font-size:11px;color:var(--muted);margin-top:2px}
+.vol{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted)}
+.vol input{margin:0;accent-color:var(--purple);cursor:pointer}
+audio{display:none}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-icon">🌐</div>
+    <div><h1>VoiceBridge</h1><p>Live voice translation</p></div>
+  </div>
+
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <span id="status-txt">Not connected</span>
+  </div>
+
+  <!-- Config -->
+  <div id="config" class="config-panel">
+    <div class="card">
+      <label>Token server URL</label>
+      <input id="server" value="http://localhost:8080" />
+      <label>Room name</label>
+      <input id="room" value="concert-live" />
+      <label>Your display name</label>
+      <input id="identity" placeholder="fan-alice" />
+      <button class="btn btn-join" id="join-btn" onclick="join()">
+        Join live translation
+      </button>
+    </div>
+  </div>
+
+  <!-- Live -->
+  <div id="live" class="live-panel">
+    <div class="wave" id="wave"></div>
+
+    <div class="box">
+      <div class="box-lbl">Live translation <span class="pill" id="lang-pill">EN</span></div>
+      <div id="lines"><div class="line old">Waiting for artist to speak…</div></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-v" id="st-chunks">0</div><div class="stat-l">Phrases</div></div>
+      <div class="stat"><div class="stat-v" id="st-lat">—</div><div class="stat-l">Latency</div></div>
+      <div class="stat"><div class="stat-v" id="st-peers">0</div><div class="stat-l">Listeners</div></div>
+    </div>
+
+    <div class="vol">
+      <span>Vol</span>
+      <input type="range" min="0" max="100" value="85" id="vol" oninput="setVol(this.value)" style="flex:1"/>
+      <span id="vol-lbl">85%</span>
+    </div>
+
+    <button class="btn btn-leave" onclick="leave()">Leave</button>
+  </div>
+</div>
+
+<audio id="audio" autoplay></audio>
+
+<script>
+const LK = window.LivekitClient;
+let room = null, chunks = 0, waveTimer = null;
+
+// prefill identity
+document.getElementById('identity').value = 'fan-' + Math.random().toString(36).slice(2,7);
+
+// ── Waveform ─────────────────────────────────────────────────────────────────
+const waveEl = document.getElementById('wave');
+for(let i=0;i<26;i++){const b=document.createElement('div');b.className='bar';b.style.height='3px';waveEl.appendChild(b);}
+const bars = waveEl.querySelectorAll('.bar');
+
+function startWave(){
+  waveTimer = setInterval(()=>{
+    bars.forEach(b=>{
+      const h = Math.random()*38+3;
+      b.style.height=h+'px';
+      b.classList.toggle('hi', h>22);
+    });
+  }, 75);
+}
+function stopWave(){
+  if(waveTimer){clearInterval(waveTimer);waveTimer=null;}
+  bars.forEach(b=>{b.style.height='3px';b.classList.remove('hi');});
+}
+
+// ── Status ───────────────────────────────────────────────────────────────────
+function setStatus(state, msg){
+  document.getElementById('dot').className='dot '+(state||'');
+  document.getElementById('status-txt').textContent=msg;
+}
+
+// ── Join ─────────────────────────────────────────────────────────────────────
+async function join(){
+  const server   = document.getElementById('server').value.trim();
+  const roomName = document.getElementById('room').value.trim();
+  const identity = document.getElementById('identity').value.trim();
+  if(!server||!roomName||!identity){alert('Fill in all fields');return;}
+
+  const btn = document.getElementById('join-btn');
+  btn.disabled=true;
+  btn.innerHTML='<div class="spin"></div> Connecting…';
+  setStatus('','Fetching token…');
+
+  try{
+    const r = await fetch(`${server}/token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}&role=fan`);
+    if(!r.ok) throw new Error(`Token server ${r.status}`);
+    const {token, livekit_url} = await r.json();
+
+    room = new LK.Room({adaptiveStream:true,dynacast:true});
+    room.on(LK.RoomEvent.TrackSubscribed,    onTrack);
+    room.on(LK.RoomEvent.TrackUnsubscribed,  t=>t.detach());
+    room.on(LK.RoomEvent.DataReceived,       onData);
+    room.on(LK.RoomEvent.ParticipantConnected,    updatePeers);
+    room.on(LK.RoomEvent.ParticipantDisconnected, updatePeers);
+    room.on(LK.RoomEvent.Disconnected, ()=>{
+      setStatus('err','Disconnected');
+      stopWave();
+    });
+
+    await room.connect(livekit_url, token);
+    setStatus('live', `Live · ${roomName}`);
+    updatePeers();
+
+    document.getElementById('config').classList.add('hide');
+    document.getElementById('live').classList.add('show');
+    startWave();
+
+  }catch(e){
+    setStatus('err','Error: '+e.message);
+    btn.disabled=false;
+    btn.innerHTML='Join live translation';
+  }
+}
+
+// ── Track subscribed ──────────────────────────────────────────────────────────
+function onTrack(track, pub, participant){
+  if(track.kind === LK.Track.Kind.Audio){
+    track.attach(document.getElementById('audio'));
+    setStatus('live','Receiving translated audio');
+  }
+}
+
+// ── Data messages from agent (transcript lines) ───────────────────────────────
+function onData(payload){
+  try{
+    const msg = JSON.parse(new TextDecoder().decode(payload));
+    if(msg.type==='translation'){
+      addLine(msg.text);
+      chunks++;
+      document.getElementById('st-chunks').textContent=chunks;
+      if(msg.latency_ms) document.getElementById('st-lat').textContent=msg.latency_ms+'ms';
+    }
+  }catch(_){}
+}
+
+function addLine(text){
+  const c = document.getElementById('lines');
+  c.querySelectorAll('.line').forEach(el=>el.classList.add('old'));
+  const d=document.createElement('div');
+  d.className='line';
+  d.textContent=text;
+  c.appendChild(d);
+  if(c.children.length>6) c.children[0].remove();
+  c.scrollTop=c.scrollHeight;
+}
+
+function updatePeers(){
+  if(!room) return;
+  document.getElementById('st-peers').textContent=room.remoteParticipants.size+1;
+}
+
+// ── Volume ────────────────────────────────────────────────────────────────────
+function setVol(v){
+  document.getElementById('audio').volume=v/100;
+  document.getElementById('vol-lbl').textContent=v+'%';
+}
+
+// ── Leave ─────────────────────────────────────────────────────────────────────
+async function leave(){
+  if(room){await room.disconnect();room=null;}
+  stopWave();
+  setStatus('','Not connected');
+  document.getElementById('config').classList.remove('hide');
+  document.getElementById('live').classList.remove('show');
+  const btn=document.getElementById('join-btn');
+  btn.disabled=false;
+  btn.innerHTML='Join live translation';
+}
+</script>
+</body>
+</html>

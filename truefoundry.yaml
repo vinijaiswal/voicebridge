@@ -1,0 +1,91 @@
+# truefoundry.yaml
+# Deploy both the translation agent and token server to TrueFoundry
+# Docs: https://docs.truefoundry.com
+#
+# Deploy with:
+#   tfy deploy --workspace <your-workspace-fqn> --file truefoundry.yaml
+
+name: voicebridge
+type: service
+
+components:
+
+  # ── Token Server ────────────────────────────────────────────────────────────
+  - name: token-server
+    type: service
+    image:
+      type: build
+      build_source:
+        type: local
+        path: ./agent
+      build_spec:
+        type: dockerfile
+        dockerfile_path: Dockerfile.token
+    ports:
+      - port: 8080
+        protocol: HTTP
+        expose: true
+    resources:
+      cpu_request: 0.1
+      cpu_limit: 0.5
+      memory_request: 256Mi
+      memory_limit: 512Mi
+    env:
+      - name: LIVEKIT_API_KEY
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: LIVEKIT_API_KEY
+      - name: LIVEKIT_API_SECRET
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: LIVEKIT_API_SECRET
+
+  # ── Translation Agent ────────────────────────────────────────────────────────
+  - name: translation-agent
+    type: job
+    image:
+      type: build
+      build_source:
+        type: local
+        path: ./agent
+      build_spec:
+        type: dockerfile
+        dockerfile_path: Dockerfile.agent
+    resources:
+      cpu_request: 0.5
+      cpu_limit: 2.0
+      memory_request: 512Mi
+      memory_limit: 2Gi
+    env:
+      - name: LIVEKIT_URL
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: LIVEKIT_URL
+      - name: LIVEKIT_API_KEY
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: LIVEKIT_API_KEY
+      - name: LIVEKIT_API_SECRET
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: LIVEKIT_API_SECRET
+      - name: MINIMAX_API_KEY
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: MINIMAX_API_KEY
+      - name: MINIMAX_GROUP_ID
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: MINIMAX_GROUP_ID
+      - name: ARTIST_VOICE_ID
+        value_from:
+          type: secret
+          name: voicebridge-secrets
+          key: ARTIST_VOICE_ID

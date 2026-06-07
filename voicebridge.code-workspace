@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "voicebridge-1",
+			"path": "."
+		},
+		{
+			"name": "scripts",
+			"path": "../voicebridge/scripts"
+		},
+		{
+			"name": "frontend",
+			"path": "../voicebridge/frontend"
+		},
+		{
+			"name": "agent",
+			"path": "../voicebridge/agent"
+		}
+	],
+	"settings": {}
+}
